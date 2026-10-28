@@ -17,9 +17,9 @@ export default defineConfig({
         display: 'standalone', // 인터넷 주소창을 숨기고 진짜 앱처럼 보이게 하는 마법의 설정
         icons: [
           {
-            src: '/vite.svg', // 기본 아이콘 (임시)
+            src: '/logo.png', // 여기에 방금 넣은 파일 이름을 적습니다! (예: /logo.png)
             sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            type: 'image/png', // svg+xml에서 png로 변경합니다
             purpose: 'any maskable'
           }
         ]
