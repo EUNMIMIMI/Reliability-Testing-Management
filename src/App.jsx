@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { Plus, Trash2, Square, ChevronDown, ChevronUp, AlertCircle, Edit, X } from 'lucide-react';
 
 // -------------------------------------------------------------
 // [1] Firebase 설정 (제공해주신 키 적용)
@@ -22,19 +23,7 @@ const db = getFirestore(app);
 const MY_APP_ID = "reliability-app";
 
 // -------------------------------------------------------------
-// [2] 아이콘 컴포넌트 (외부 라이브러리 의존성 방지)
-// -------------------------------------------------------------
-const AlertCircle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-const Plus = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-const ChevronDown = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 12 15 18 9"/></svg>;
-const ChevronUp = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="18 15 12 9 6 15"/></svg>;
-const Trash2 = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
-const Edit = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
-const Square = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>;
-const XIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-
-// -------------------------------------------------------------
-// [3] 데이터 및 유틸리티
+// [2] 데이터 및 유틸리티
 // -------------------------------------------------------------
 const DEFAULT_TESTS = ['IP', 'EMC', '진동', '충격'];
 const TEST_STANDARD_OPTIONS = {
@@ -84,13 +73,21 @@ const calculateDuration = (startDate, endDate) => {
 const isTruthy = (val) => val === true || (typeof val === 'string' && val.trim() !== '');
 
 // -------------------------------------------------------------
-// [4] 메인 컴포넌트
+// [3] 메인 컴포넌트
 // -------------------------------------------------------------
 export default function App() {
+  // 로그인 관련 상태
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isCapsLockOn, setIsCapsLockOn] = useState(false);
+  const [loginError, setLoginError] = useState(false);
+
+  // 데이터 관련 상태
   const [user, setUser] = useState(null);
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // UI 관련 상태
   const [expandedModels, setExpandedModels] = useState({});
   const [newTestNames, setNewTestNames] = useState({});
   
@@ -111,7 +108,7 @@ export default function App() {
       .catch(error => { console.error("Auth Error:", error); setLoading(false); });
   }, []);
 
-  // 데이터 불러오기 (Firebase Firestore v10)
+  // 데이터 불러오기 (Firebase Firestore)
   useEffect(() => {
     if (!user) return;
     const modelsRef = collection(db, 'artifacts', MY_APP_ID, 'users', user.uid, 'reliability_models');
@@ -204,8 +201,72 @@ export default function App() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">데이터를 불러오는 중입니다...</div>;
 
-  // 집계 로직
+  // -------------------------------------------------------------
+  // 로그인 화면 렌더링
+  // -------------------------------------------------------------
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
+        <div className="bg-white p-8 rounded-2xl shadow-md max-w-sm w-full border border-gray-200">
+          <div className="flex justify-center mb-6">
+            <div className="bg-blue-50 p-3 rounded-full">
+              <AlertCircle className="w-8 h-8 text-blue-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-center text-gray-800 mb-2">신뢰성시험 관리대장</h2>
+          <p className="text-sm text-gray-500 text-center mb-8">접속하시려면 비밀번호를 입력해주세요.</p>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (password === 'q1234') {
+              setIsAuthenticated(true);
+              setLoginError(false);
+            } else {
+              setLoginError(true);
+            }
+          }}>
+            <div className="mb-6 relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (loginError) setLoginError(false);
+                }}
+                onKeyUp={(e) => setIsCapsLockOn(e.getModifierState('CapsLock'))}
+                onKeyDown={(e) => setIsCapsLockOn(e.getModifierState('CapsLock'))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                placeholder="비밀번호 입력"
+                autoFocus
+              />
+              {isCapsLockOn && (
+                <p className="text-orange-500 text-xs mt-2 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Caps Lock이 켜져 있습니다.
+                </p>
+              )}
+              {loginError && (
+                <p className="text-red-500 text-xs mt-2 font-medium flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> 비밀번호가 일치하지 않습니다.
+                </p>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+            >
+              접속하기
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 메인 화면 집계 및 렌더링
+  // -------------------------------------------------------------
   const totalModelCount = models.length;
+  // 단 하나라도 완료된 시험이 있다면 해당 모델을 '완료' 쪽에 포함시킴
   const completedModelCount = models.filter(m => m.tests.length > 0 && m.tests.some(t => isTestCompleted(t))).length;
   const inProgressTestCount = models.reduce((acc, m) => acc + m.tests.filter(t => !isTestCompleted(t)).length, 0);
   const inProgressModelCount = models.filter(m => m.tests.length > 0 && m.tests.some(t => !isTestCompleted(t))).length;
@@ -264,7 +325,7 @@ export default function App() {
             <div className="relative w-full flex flex-col items-center">
               <button onClick={() => { setMainTab('all'); setSubTab('TMD'); }}
                 className={`relative z-10 w-full flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all text-gray-500 
-                  ${mainTab === 'all' ? 'border-[#F28DB2] bg-pink-50 shadow-[0_0_15px_rgba(242,141,178,0.5)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}
+                  ${mainTab === 'all' ? 'border-[#F28DB2] bg-pink-100 shadow-[0_0_15px_rgba(242,141,178,0.5)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}
               >
                 <div className="text-lg font-bold mb-1">전체</div>
                 <div className="text-2xl font-extrabold">{totalModelCount} <span className="text-base font-medium">모델</span></div>
@@ -273,8 +334,8 @@ export default function App() {
                 <div className="w-full pt-6 relative flex justify-between gap-3 z-0 mb-6">
                   <div className="absolute top-0 left-1/2 w-px h-6 bg-[#F28DB2] -translate-x-1/2"></div>
                   <div className="absolute top-6 left-[25%] right-[25%] h-px bg-[#F28DB2]"></div>
-                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F28DB2] bg-pink-50 shadow-[0_0_10px_rgba(242,141,178,0.4)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}>TMD</button>
-                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F28DB2] bg-pink-50 shadow-[0_0_10px_rgba(242,141,178,0.4)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}>UHP</button>
+                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F28DB2] bg-pink-100 shadow-[0_0_10px_rgba(242,141,178,0.4)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}>TMD</button>
+                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F28DB2] bg-pink-100 shadow-[0_0_10px_rgba(242,141,178,0.4)]' : 'border-[#F28DB2] bg-white hover:bg-pink-50'}`}>UHP</button>
                 </div>
               )}
             </div>
@@ -283,7 +344,7 @@ export default function App() {
             <div className="relative w-full flex flex-col items-center">
               <button onClick={() => { setMainTab('inProgress'); setSubTab('TMD'); }}
                 className={`relative z-10 w-full flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all text-gray-500 
-                  ${mainTab === 'inProgress' ? 'border-[#F5AC79] bg-orange-50 shadow-[0_0_15px_rgba(245,172,121,0.5)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}
+                  ${mainTab === 'inProgress' ? 'border-[#F5AC79] bg-orange-100 shadow-[0_0_15px_rgba(245,172,121,0.5)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}
               >
                 <div className="text-lg font-bold mb-1">진행중</div>
                 <div className="text-2xl font-extrabold flex items-baseline justify-center gap-1">
@@ -296,8 +357,8 @@ export default function App() {
                 <div className="w-full pt-6 relative flex justify-between gap-3 z-0 mb-6">
                   <div className="absolute top-0 left-1/2 w-px h-6 bg-[#F5AC79] -translate-x-1/2"></div>
                   <div className="absolute top-6 left-[25%] right-[25%] h-px bg-[#F5AC79]"></div>
-                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F5AC79] bg-orange-50 shadow-[0_0_10px_rgba(245,172,121,0.4)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}>TMD</button>
-                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F5AC79] bg-orange-50 shadow-[0_0_10px_rgba(245,172,121,0.4)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}>UHP</button>
+                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F5AC79] bg-orange-100 shadow-[0_0_10px_rgba(245,172,121,0.4)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}>TMD</button>
+                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F5AC79] bg-orange-100 shadow-[0_0_10px_rgba(245,172,121,0.4)]' : 'border-[#F5AC79] bg-white hover:bg-orange-50'}`}>UHP</button>
                 </div>
               )}
             </div>
@@ -306,7 +367,7 @@ export default function App() {
             <div className="relative w-full flex flex-col items-center">
               <button onClick={() => { setMainTab('completed'); setSubTab('TMD'); }}
                 className={`relative z-10 w-full flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all text-gray-500 
-                  ${mainTab === 'completed' ? 'border-[#F2CF62] bg-yellow-50 shadow-[0_0_15px_rgba(242,207,98,0.5)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}
+                  ${mainTab === 'completed' ? 'border-[#F2CF62] bg-yellow-100 shadow-[0_0_15px_rgba(242,207,98,0.5)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}
               >
                 <div className="text-lg font-bold mb-1">완료</div>
                 <div className="text-2xl font-extrabold">{completedModelCount} <span className="text-base font-medium">모델</span></div>
@@ -315,8 +376,8 @@ export default function App() {
                 <div className="w-full pt-6 relative flex justify-between gap-3 z-0 mb-6">
                   <div className="absolute top-0 left-1/2 w-px h-6 bg-[#F2CF62] -translate-x-1/2"></div>
                   <div className="absolute top-6 left-[25%] right-[25%] h-px bg-[#F2CF62]"></div>
-                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F2CF62] bg-yellow-50 shadow-[0_0_10px_rgba(242,207,98,0.4)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}>TMD</button>
-                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F2CF62] bg-yellow-50 shadow-[0_0_10px_rgba(242,207,98,0.4)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}>UHP</button>
+                  <button onClick={() => setSubTab('TMD')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'TMD' ? 'border-[#F2CF62] bg-yellow-100 shadow-[0_0_10px_rgba(242,207,98,0.4)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}>TMD</button>
+                  <button onClick={() => setSubTab('UHP')} className={`w-1/2 mt-0 p-2.5 rounded-lg border-2 text-sm font-bold transition-all z-10 text-gray-500 ${subTab === 'UHP' ? 'border-[#F2CF62] bg-yellow-100 shadow-[0_0_10px_rgba(242,207,98,0.4)]' : 'border-[#F2CF62] bg-white hover:bg-yellow-50'}`}>UHP</button>
                 </div>
               )}
             </div>
@@ -427,7 +488,7 @@ export default function App() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white flex justify-between items-center p-5 border-b border-gray-100 z-10">
               <h2 className="text-xl font-bold text-gray-800">새 모델 추가</h2>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600"><XIcon className="w-6 h-6" /></button>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
             <form onSubmit={handleAddModel} className="p-5 space-y-4">
               <div>
@@ -475,7 +536,7 @@ export default function App() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white flex justify-between items-center p-5 border-b border-gray-100 z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Edit className="w-5 h-5 text-blue-600" />상세 일정 및 데이터 수정</h2>
-              <button onClick={() => setEditModalData(null)} className="text-gray-400 hover:text-gray-600"><XIcon className="w-6 h-6" /></button>
+              <button onClick={() => setEditModalData(null)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
             <form onSubmit={handleSaveEditModal} className="p-6 space-y-5">
               <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center">
